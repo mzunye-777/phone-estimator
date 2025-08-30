@@ -1,14 +1,13 @@
 let map, markers;
 
 function initMap(lat, lon) {
+  console.log(`Initializing map at lat=${lat}, lon=${lon}`); // Debug
   map = L.map('map').setView([lat, lon], 12);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
-  markers = L.markerClusterGroup();
+  markers = L.layerGroup(); // Simplified: no clustering for debugging
   map.addLayer(markers);
-
-  // Update dots on move or zoom
   map.on('moveend zoomend', updateDots);
 }
 
@@ -17,6 +16,7 @@ async function updateDots() {
   const zoom = map.getZoom();
   const boundsStr = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
   const resultDiv = document.getElementById('result');
+  console.log(`Updating dots for bounds=${boundsStr}, zoom=${zoom}`); // Debug
 
   try {
     const res = await fetch(`/estimate?bounds=${encodeURIComponent(boundsStr)}&zoom=${zoom}`);
@@ -24,6 +24,7 @@ async function updateDots() {
       throw new Error(await res.text());
     }
     const data = await res.json();
+    console.log(`Received: ${data.dots.length} dots`, data.dots); // Debug
 
     resultDiv.innerHTML = `
       <p><strong>Area:</strong> ${data.area}</p>
@@ -34,20 +35,19 @@ async function updateDots() {
       <p><em>Disclaimer: This is an estimate based on public data.</em></p>
     `;
 
-    // Clear existing markers
     markers.clearLayers();
-
-    // Add new dots
     data.dots.forEach(dot => {
+      console.log(`Adding dot: lat=${dot.lat}, lon=${dot.lon}`); // Debug
       const marker = L.circleMarker([dot.lat, dot.lon], {
-        radius: 5,
+        radius: 8, // Larger for visibility
         color: 'red',
         fillColor: 'red',
-        fillOpacity: 0.5
+        fillOpacity: 0.7
       });
       markers.addLayer(marker);
     });
   } catch (error) {
+    console.error('Update dots error:', error);
     resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
   }
 }
@@ -56,6 +56,7 @@ document.getElementById('estimateForm').addEventListener('submit', async (e) => 
   e.preventDefault();
   const address = document.getElementById('address').value;
   const resultDiv = document.getElementById('result');
+  console.log(`Submitting address: ${address}`); // Debug
 
   try {
     const res = await fetch(`/estimate?address=${encodeURIComponent(address)}`);
@@ -63,6 +64,7 @@ document.getElementById('estimateForm').addEventListener('submit', async (e) => 
       throw new Error(await res.text());
     }
     const data = await res.json();
+    console.log('Address response:', data); // Debug
 
     resultDiv.innerHTML = `
       <p><strong>Area:</strong> ${data.area}</p>
@@ -73,38 +75,40 @@ document.getElementById('estimateForm').addEventListener('submit', async (e) => 
       <p><em>Disclaimer: This is an estimate based on public data.</em></p>
     `;
 
-    // Update map
     map.setView([data.lat, data.lon], 12);
     markers.clearLayers();
     data.dots.forEach(dot => {
+      console.log(`Adding dot: lat=${dot.lat}, lon=${dot.lon}`); // Debug
       const marker = L.circleMarker([dot.lat, dot.lon], {
-        radius: 5,
+        radius: 8,
         color: 'red',
         fillColor: 'red',
-        fillOpacity: 0.5
+        fillOpacity: 0.7
       });
       markers.addLayer(marker);
     });
   } catch (error) {
+    console.error('Address fetch error:', error);
     resultDiv.innerHTML = `<p>Error: ${error.message}</p>`;
   }
 });
 
-// Initialize map with user’s location
 if (navigator.geolocation) {
   navigator.geolocation.getCurrentPosition(
     (position) => {
+      console.log(`Geolocation success: lat=${position.coords.latitude}, lon=${position.coords.longitude}`); // Debug
       initMap(position.coords.latitude, position.coords.longitude);
       updateDots();
     },
-    () => {
-      // Fallback: Default to New York
-      initMap(40.7128, -74.0060);
+    (error) => {
+      console.error('Geolocation error:', error);
+      initMap(-1.2921, 36.8219); // Nairobi fallback
       updateDots();
-    }
+    },
+    { timeout: 10000 }
   );
 } else {
-  // Fallback: Default to New York
-  initMap(40.7128, -74.0060);
+  console.error('Geolocation not supported');
+  initMap(-1.2921, 36.8219); // Nairobi fallback
   updateDots();
 }
