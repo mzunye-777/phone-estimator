@@ -7,6 +7,7 @@ const port = 3000;
 console.log('Starting server with express:', express); // Debug dependency
 console.log('Starting server with axios:', axios); // Debug dependency
 
+console.log('Defining penetration rates...');
 const penetrationRates = {
   'United States': 120,
   'United Kingdom': 110,
@@ -14,8 +15,17 @@ const penetrationRates = {
   'China': 115,
 };
 
+console.log('Setting up static middleware...');
 app.use(express.static('public'));
 
+// Test route to confirm server is running
+console.log('Adding test route...');
+app.get('/test', (req, res) => {
+  console.log('Test route hit');
+  res.json({ message: 'Server is running' });
+});
+
+console.log('Defining /estimate route...');
 app.get('/estimate', async (req, res) => {
   console.log('Handling /estimate request:', req.query); // Debug
   const { address, bounds, zoom } = req.query;
@@ -56,16 +66,19 @@ app.get('/estimate', async (req, res) => {
       return res.status(400).json({ error: 'Address or bounds required' });
     }
 
-    // Fetch population from REST Countries with fallback
-    let population = 10000; // Default fallback
-    try {
-      console.log(`Fetching population for ${country}`);
-      const countryRes = await axios.get(`https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=population`, { timeout: 5000 });
-      population = countryRes.data[0]?.population || 10000;
-      console.log(`Population fetched: ${population}`);
-    } catch (e) {
-      console.error('REST Countries fetch failed:', e.message);
-      population = 10000; // Fallback on error
+    // Fetch population with robust fallback
+    let population = 10000; // Default outside try
+    if (country && country !== 'Unknown') {
+      try {
+        console.log(`Fetching population for ${country}`);
+        const countryRes = await axios.get(`https://restcountries.com/v3.1/name/${encodeURIComponent(country)}?fields=population`, { timeout: 5000 });
+        population = countryRes.data[0]?.population || 10000;
+        console.log(`Population fetched: ${population}`);
+      } catch (e) {
+        console.error('REST Countries fetch failed:', e.message);
+      }
+    } else {
+      console.warn('No valid country, using fallback population');
     }
 
     const rate = penetrationRates[country] || 100;
@@ -102,6 +115,7 @@ app.get('/estimate', async (req, res) => {
   }
 });
 
+console.log('Setting up server to listen...');
 app.listen(port, () => {
   console.log(`Server running at http://localhost:${port}`);
 });
