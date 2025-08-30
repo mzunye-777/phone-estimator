@@ -6,7 +6,7 @@ function initMap(lat, lon) {
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
-  markers = L.layerGroup(); // Simplified: no clustering for debugging
+  markers = L.layerGroup(); // Simplified for debugging
   map.addLayer(markers);
   map.on('moveend zoomend', updateDots);
 }
@@ -19,7 +19,7 @@ async function updateDots() {
   console.log(`Updating dots for bounds=${boundsStr}, zoom=${zoom}`); // Debug
 
   try {
-    const res = await fetch(`/estimate?bounds=${encodeURIComponent(boundsStr)}&zoom=${zoom}`);
+    const res = await fetch(`http://localhost:3000/estimate?bounds=${encodeURIComponent(boundsStr)}&zoom=${zoom}`);
     if (!res.ok) {
       throw new Error(await res.text());
     }
@@ -39,7 +39,7 @@ async function updateDots() {
     data.dots.forEach(dot => {
       console.log(`Adding dot: lat=${dot.lat}, lon=${dot.lon}`); // Debug
       const marker = L.circleMarker([dot.lat, dot.lon], {
-        radius: 8, // Larger for visibility
+        radius: 8,
         color: 'red',
         fillColor: 'red',
         fillOpacity: 0.7
@@ -59,7 +59,7 @@ document.getElementById('estimateForm').addEventListener('submit', async (e) => 
   console.log(`Submitting address: ${address}`); // Debug
 
   try {
-    const res = await fetch(`/estimate?address=${encodeURIComponent(address)}`);
+    const res = await fetch(`http://localhost:3000/estimate?address=${encodeURIComponent(address)}`);
     if (!res.ok) {
       throw new Error(await res.text());
     }
